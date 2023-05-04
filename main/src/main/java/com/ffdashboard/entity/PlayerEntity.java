@@ -2,22 +2,25 @@ package com.ffdashboard.entity;
 
 public class PlayerEntity {
 
-    private Integer id;
+    private String id;
     
     private String name;
 
     private String position;
 
-    public PlayerEntity(Integer id, String name, String position) {
+    private Integer value; 
+
+    public PlayerEntity(String id, String name, String position, Integer value) {
         this.id = id;
         this.name = name;
         this.position = position;
+        this.value = value;
     }
-        public void setId(Integer id) {
+        public void setId(String id) {
             this.id = id;
         }
 
-        public Integer getId() {
+        public String getId() {
             return this.id;
         }
         
@@ -36,5 +39,14 @@ public class PlayerEntity {
         public String getPosition() {
             return this.position;
         }
+        
+        public void setValue(Integer value) {
+            this.value = value;
+        }
+
+        public Integer getValue() {
+            return this.value;
+        }
+    
 
 }

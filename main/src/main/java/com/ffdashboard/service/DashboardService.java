@@ -13,16 +13,29 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
 
+import com.ffdashboard.constant.Constants;
 import com.ffdashboard.entity.PlayerEntity;
 import com.google.gson.*;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
 public class DashboardService {
 
-    private HashMap<Integer, PlayerEntity> playerIdMap = new HashMap<>();
+    private HashMap<String, PlayerEntity> playerIdMap = new HashMap<>();
 
-    private List<String> validPositions = Arrays.asList("QB", "DEF", "WR", "TE", "RB");
+    private HashMap<String, Integer> playerValues = new HashMap<>();
+
+    private Constants constants = new Constants();
     
     public DashboardService() throws IOException {
+        initializePlayerValues();
+        initializePlayerMap();
+    }
+
+    private void initializePlayerMap() throws IOException {
         String urlString = "https://api.sleeper.app/v1/players/nfl";
 
         // Connect to the URL using java's native library
@@ -40,21 +53,54 @@ public class DashboardService {
             Boolean active = playerInfo.get("active").getAsBoolean();
             if(active) {
                 String position = playerInfo.get("position").toString().replaceAll("\"", "");
-                if(validPositions.contains(position)){
+                if(constants.getValidPositions().contains(position)){
                     String playerId = entry.getKey();
                     String playerName;
+                    Integer value;
                     if(playerInfo.get("full_name") == null) {
-                        playerName = "Defense";
+                        playerName = playerId + " DEF";
                     }
                     else{
                         playerName = playerInfo.get("full_name").getAsString();
                     }
-                    System.out.println(playerId + ": " + playerName);
+                    if(!playerValues.containsKey(playerName)) {
+                        if(constants.getNameConverterMap().containsKey(playerName)){
+                            playerName = constants.getNameConverterMap().get(playerName);
+                            value = playerValues.get(playerName);
+                        }
+                        else {
+                            value = 0;
+                        }
+                    }
+                    else {
+                        value = playerValues.get(playerName);
+                    }
+                    PlayerEntity tempPlayer = new PlayerEntity(playerId, playerName, position, value);
+                    playerIdMap.put(playerId, tempPlayer);
                 }
             }    
         }
     }
 
+    public void initializePlayerValues() throws IOException {
+        Document doc = Jsoup.connect("https://www.pff.com/news/fantasy-football-2023-dynasty-fantasy-football-trade-value-chart").get();
 
+        Elements tableElements = doc.select("table");
+        for (Element tableElement : tableElements) {
+            Elements rows = tableElement.select("tr");
+            for(Element row :rows)
+            {
+                Elements columns = row.select("td");
+                if(columns.size() == 4) {
+                    String playerName = columns.get(0).text();
+                    String value = columns.get(3).text();
+                    if(!playerName.equals("Player")){
+                        playerValues.put(playerName, Integer.parseInt(value));
+                    }
+                }
+            }
+        }
+
+    }
     
 }
