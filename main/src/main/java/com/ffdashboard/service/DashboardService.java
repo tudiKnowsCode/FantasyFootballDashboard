@@ -3,18 +3,14 @@ package com.ffdashboard.service;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
-import java.util.Set;
 
 import com.ffdashboard.constant.Constants;
 import com.ffdashboard.entity.PlayerEntity;
+import com.ffdashboard.entity.UserEntity;
 import com.google.gson.*;
 
 import org.jsoup.Jsoup;
@@ -24,9 +20,9 @@ import org.jsoup.select.Elements;
 
 public class DashboardService {
 
-    private HashMap<String, PlayerEntity> playerIdMap = new HashMap<>();
+    protected HashMap<String, PlayerEntity> playerIdMap = new HashMap<>();
 
-    private HashMap<String, Integer> playerValues = new HashMap<>();
+    protected HashMap<String, Integer> playerValues = new HashMap<>();
 
     private Constants constants = new Constants();
     
@@ -38,15 +34,7 @@ public class DashboardService {
     private void initializePlayerMap() throws IOException {
         String urlString = "https://api.sleeper.app/v1/players/nfl";
 
-        // Connect to the URL using java's native library
-        URL url = new URL(urlString);
-        URLConnection request = url.openConnection();
-        request.connect();
-
-        // Convert to a JSON object to print data
-        JsonParser jp = new JsonParser(); //from gson
-        JsonElement root = jp.parse(new InputStreamReader((InputStream) request.getContent())); //Convert the input stream to a json element
-        JsonObject rootobj = root.getAsJsonObject(); //May be an array, may be an object. 
+        JsonObject rootobj = getJsonObject(urlString);
         Map<String, JsonElement> rawMap = rootobj.asMap();
         for (Map.Entry<String,JsonElement> entry : rawMap.entrySet())  {
             JsonObject playerInfo = entry.getValue().getAsJsonObject();
@@ -56,6 +44,7 @@ public class DashboardService {
                 if(constants.getValidPositions().contains(position)){
                     String playerId = entry.getKey();
                     String playerName;
+                    String team;
                     Integer value;
                     if(playerInfo.get("full_name") == null) {
                         playerName = playerId + " DEF";
@@ -63,10 +52,16 @@ public class DashboardService {
                     else{
                         playerName = playerInfo.get("full_name").getAsString();
                     }
+                    if (playerInfo.get("team").isJsonNull()) {
+                        team = "FA";
+                    }
+                    else {
+                        team = playerInfo.get("team").getAsString();
+                    }
                     if(!playerValues.containsKey(playerName)) {
                         if(constants.getNameConverterMap().containsKey(playerName)){
-                            playerName = constants.getNameConverterMap().get(playerName);
-                            value = playerValues.get(playerName);
+                            String convertedName = constants.getNameConverterMap().get(playerName);
+                            value = playerValues.get(convertedName);
                         }
                         else {
                             value = 0;
@@ -75,7 +70,7 @@ public class DashboardService {
                     else {
                         value = playerValues.get(playerName);
                     }
-                    PlayerEntity tempPlayer = new PlayerEntity(playerId, playerName, position, value);
+                    PlayerEntity tempPlayer = new PlayerEntity(playerId, playerName, position, value, team);
                     playerIdMap.put(playerId, tempPlayer);
                 }
             }    
@@ -102,5 +97,42 @@ public class DashboardService {
         }
 
     }
+
+    protected JsonArray getJsonArray(String urlString) throws IOException {
     
+        return getJsonElement(urlString).getAsJsonArray();
+    
+    }
+
+    protected JsonObject getJsonObject(String urlString) throws IOException {
+
+        return getJsonElement(urlString).getAsJsonObject();
+    
+    }
+
+    private JsonElement getJsonElement(String urlString)throws IOException {
+    
+        // Connect to the URL using java's native library
+        URL url = new URL(urlString);
+        URLConnection request = url.openConnection();
+        request.connect();
+
+        // Convert to a JSON object to print data
+        JsonParser jp = new JsonParser(); //from gson
+        JsonElement root = jp.parse(new InputStreamReader((InputStream) request.getContent())); //Convert the input stream to a json element
+
+        return root;
+    
+    }        
+
+    protected UserEntity getUserInfo(String username) throws IOException {
+
+        String urlString = "https://api.sleeper.app/v1/user/"+ username;
+
+        JsonObject userInfo = getJsonObject(urlString);
+
+        return new UserEntity(userInfo.get("display_name").getAsString(), userInfo.get("user_id").getAsString());
+
+    }
+
 }
